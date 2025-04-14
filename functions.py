@@ -12,59 +12,64 @@ import random
 import traceback
 import pandas as pd
 
-
 GOOGLE_VERIFIED = False
 
 
 def google_search_selenium(driver, query, cell_value):
+    """
+    Perform Google search using Selenium and return links that contain 'torob.'.
+    """
     global GOOGLE_VERIFIED
     try:
+        # Open Google homepage
         driver.get("https://google.com")
-        search_box = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "q")))
+        search_box = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.NAME, "q"))
+        )
 
-        if GOOGLE_VERIFIED == False:
-            input("Please accept google verification and press enter")
+        # Wait for user verification if necessary
+        if not GOOGLE_VERIFIED:
+            input("Please complete Google verification then press Enter.")
             GOOGLE_VERIFIED = True
 
         search_box.clear()
-
         human_like_typing(search_box, query)
-
         search_box.submit()
 
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "g")))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "g"))
+        )
 
         results = driver.find_elements(By.CLASS_NAME, "g")
         num = 0
         all_links = []
+        
         for result in results:
-
             title_elem = result.find_element(By.TAG_NAME, "h3")
             link_elem = result.find_element(By.TAG_NAME, "a")
             
             title = title_elem.text
             link = link_elem.get_attribute("href")
             
+            # Remove prefix "خرید و قیمت " if present
             if title.startswith("خرید و قیمت "):
                 title = title[12:]
             
             similarity_percent = similarity_ratio(to_en(title).lower(), to_en(cell_value).lower())
             
             if "torob." in link:
-                all_links.append((f"{cell_value} _ {num + 1}",
-                similarity_percent,
-                link
-                ))
+                all_links.append((f"{cell_value} _ {num + 1}", similarity_percent, link))
             
             num += 1
+        
+        # Sort links based on similarity ratio
         all_links.sort(key=lambda x: x[1], reverse=True)
         return all_links
 
     except Exception as error:
         log_exception_to_file(error, "google search selenium func")
-
         return None
-
+    
 
 def get_torob_info(url, product):
     try:
@@ -136,7 +141,10 @@ def create_driver():
         log_exception_to_file(error, "creat driver func")
 
 
-def log_exception_to_file(exception, reason, file_path="error_log.txt"):
+def log_exception_to_file(exception, reason, file_path="logs/error_log.txt"):
+    """
+    Log exceptions with timestamp and traceback to a file.
+    """
     with open(file_path, "a", encoding='utf8') as file:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         exception_type = type(exception).__name__
@@ -176,14 +184,15 @@ def similarity_ratio(str1, str2):
 
 
 def human_like_typing(element, text):
+    """
+    Simulate human typing by sending keys with a random delay.
+    """
     try:
         for char in text:
             element.send_keys(char)
-
             time.sleep(random.uniform(0.01, 0.1))
-
     except Exception as error:
-        log_exception_to_file(error, "fhuman like typing func")
+        log_exception_to_file(error, "human like typing func")
 
 
 # return just the best similarity link
